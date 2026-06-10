@@ -1,18 +1,4 @@
-"""FastAPI application — Traceable Multi-Agent Research Assistant.
-
-Exposes the run lifecycle and per-run traceability resources:
-
-    POST /api/run                      start a research run (returns run_id immediately)
-    GET  /api/runs                     list recent runs
-    GET  /api/runs/{run_id}            full run bundle (answer + traceability)
-    GET  /api/runs/{run_id}/logs       agent log timeline
-    GET  /api/runs/{run_id}/sources    sources panel data
-    GET  /api/runs/{run_id}/claims     claim -> source mapping
-
-POST /api/run launches the agent pipeline in a FastAPI BackgroundTask and
-returns ``{run_id, status: "running"}`` right away. The frontend then polls
-GET /api/runs/{run_id} every second to render live agent progress and logs.
-"""
+"""FastAPI application — Traceable Multi-Agent Research Assistant."""
 
 from __future__ import annotations
 
@@ -37,24 +23,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
-FRONTEND_ORIGIN = os.getenv(
-    "FRONTEND_ORIGIN",
-    "https://traceable-multi-agents-system-1.onrender.com",
-)
-
-ALLOWED_ORIGINS = [
-    FRONTEND_ORIGIN,
-    "https://traceable-multi-agents-system-1.onrender.com",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
+# CORS: allow deployed frontend + local dev
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(set(ALLOWED_ORIGINS)),
-    allow_credentials=True,
+    allow_origins=[
+        "https://traceable-multi-agents-system-1.onrender.com",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -65,11 +44,9 @@ def _startup() -> None:
     init_db()
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 def _build_run_response(run_id: str) -> schemas.RunResponse:
     run = models.get_run(run_id)
+
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
@@ -110,31 +87,55 @@ def _build_run_response(run_id: str) -> schemas.RunResponse:
     )
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "llm_configured": llm_service.is_configured()}
+    return {
+        "status": "ok",
+        "llm_configured": llm_service.is_configured(),
+    }
 
 
 def _execute_run(run_id: str, question: str) -> None:
-    """Run the agent workflow to completion."""
     try:
         state = run_workflow(run_id, question)
+
         models.update_run(
             run_id,
             status="completed",
             final_answer=state.get("final_answer"),
         )
+
     except llm_service.LLMError as exc:
         msg = str(exc)
-        log(run_id, "orchestrator", f"Run failed: {msg}", level="error")
-        models.update_run(run_id, status="failed", error=msg)
+
+        log(
+            run_id,
+            "orchestrator",
+            f"Run failed: {msg}",
+            level="error",
+        )
+
+        models.update_run(
+            run_id,
+            status="failed",
+            error=msg,
+        )
+
     except Exception as exc:
         msg = f"Unexpected error: {exc}"
-        log(run_id, "orchestrator", msg, level="error")
-        models.update_run(run_id, status="failed", error=msg)
+
+        log(
+            run_id,
+            "orchestrator",
+            msg,
+            level="error",
+        )
+
+        models.update_run(
+            run_id,
+            status="failed",
+            error=msg,
+        )
 
 
 @app.post("/api/run", response_model=schemas.RunStartResponse)
@@ -143,14 +144,24 @@ def create_run(
     background_tasks: BackgroundTasks,
 ) -> schemas.RunStartResponse:
     run_id = models.create_run(req.question)
-    background_tasks.add_task(_execute_run, run_id, req.question)
 
-    return schemas.RunStartResponse(run_id=run_id, status="running")
+    background_tasks.add_task(
+        _execute_run,
+        run_id,
+        req.question,
+    )
+
+    return schemas.RunStartResponse(
+        run_id=run_id,
+        status="running",
+    )
 
 
 @app.get("/api/runs")
 def list_runs() -> dict:
-    return {"runs": models.list_runs()}
+    return {
+        "runs": models.list_runs(),
+    }
 
 
 @app.get("/api/runs/{run_id}", response_model=schemas.RunResponse)
@@ -163,7 +174,9 @@ def get_logs(run_id: str) -> dict:
     if not models.get_run(run_id):
         raise HTTPException(status_code=404, detail="Run not found")
 
-    return {"logs": models.get_logs(run_id)}
+    return {
+        "logs": models.get_logs(run_id),
+    }
 
 
 @app.get("/api/runs/{run_id}/sources")
@@ -171,7 +184,9 @@ def get_sources(run_id: str) -> dict:
     if not models.get_run(run_id):
         raise HTTPException(status_code=404, detail="Run not found")
 
-    return {"sources": models.get_sources(run_id)}
+    return {
+        "sources": models.get_sources(run_id),
+    }
 
 
 @app.get("/api/runs/{run_id}/claims")
@@ -179,4 +194,6 @@ def get_claims(run_id: str) -> dict:
     if not models.get_run(run_id):
         raise HTTPException(status_code=404, detail="Run not found")
 
-    return {"claims": models.get_claims(run_id)}
+    return {
+        "claims": models.get_claims(run_id),
+    }
