@@ -11,6 +11,7 @@ env/
 # Env
 .env
 backend/.env
+frontend/.env
 
 # Node
 node_modules/
