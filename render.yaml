@@ -1,0 +1,33 @@
+# Render Blueprint (Infrastructure as Code) for the FastAPI backend.
+#
+# This repo is a monorepo (backend/ + frontend/), so `rootDir: backend` is
+# REQUIRED — it makes Render run the build/start commands inside backend/ and
+# read backend/.python-version. PYTHON_VERSION is also set explicitly because
+# the env var takes precedence over any file and is unambiguous.
+#
+# To use this file: Render Dashboard → New → Blueprint → point at this repo.
+# (If you already created the service manually via the dashboard, this file is
+#  ignored — apply the equivalent settings in the dashboard instead. See README
+#  / the deployment notes for the exact values.)
+
+services:
+  - type: web
+    name: traceable-research-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # Pins the interpreter so pydantic-core installs a prebuilt cp312 wheel
+      # instead of attempting a Rust source build (which fails on Render).
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Secret — leave unset here and add the real value in the dashboard.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: FAST_DEMO_MODE
+        value: "true"

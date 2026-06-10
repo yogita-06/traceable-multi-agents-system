@@ -1,6 +1,13 @@
-// Thin API client. Uses relative /api paths which Vite proxies to FastAPI.
-
-const BASE = "/api";
+// Thin API client.
+//
+// In local dev, leave VITE_API_BASE_URL unset: BASE falls back to the relative
+// "/api" path, which the Vite dev server proxies to the FastAPI backend.
+//
+// In production (static hosting, no proxy), set VITE_API_BASE_URL at BUILD time
+// to the backend's full API base, e.g.
+//   https://traceable-multi-agents-system.onrender.com/api
+// Vite inlines import.meta.env.VITE_* values at build time.
+const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 // Marker error so the UI can show a dedicated "still running" message when a
 // request exceeds the client-side timeout (the backend keeps working).
