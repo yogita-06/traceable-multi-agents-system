@@ -8,6 +8,7 @@ import LogsTimeline from "./components/LogsTimeline.jsx";
 import LiveWorkflow from "./components/LiveWorkflow.jsx";
 import EvaluationCard from "./components/EvaluationCard.jsx";
 import ConflictSection from "./components/ConflictSection.jsx";
+import FeatureCards from "./components/FeatureCards.jsx";
 
 function Header() {
   return (
@@ -26,9 +27,7 @@ function Header() {
             </p>
           </div>
         </div>
-        <span className="hidden rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 sm:block">
-          Free stack · LangGraph · Groq · DuckDuckGo
-        </span>
+    
       </div>
     </header>
   );
@@ -125,6 +124,7 @@ export default function App() {
         {!showResults && (
           <div className="mx-auto max-w-2xl">
             <QuestionInput onSubmit={handleRun} loading={loading} />
+            {!loading && !error && <FeatureCards />}
             {loading && live && (
               <div className="mt-6 space-y-6">
                 <LiveWorkflow run={live} />
